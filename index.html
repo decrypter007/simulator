@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Monte Carlo Simulator - ELZ FX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2452/2452144.png">
+
+  <style>
+    :root { --primary: #22c55e; --bg: #000; --card-bg: #111; --border: #222; --text: #e5e7eb; --accent: #3b82f6; --danger: #ef4444; }
+    body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; padding-top: 60px; overflow: hidden; height: 100vh; }
+    header { position: fixed; top: 0; left: 0; right: 0; height: 55px; background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(15px); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); z-index: 10000; }
+    .brand-container { display: flex; flex-direction: column; }
+    .brand-title { color: var(--primary); font-weight: 900; font-size: 15px; letter-spacing: -0.2px; line-height: 1.1; }
+    .brand-sub { color: #666; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .view-toggle-pill { display: flex; background: #1a1a1a; border-radius: 12px; padding: 3px; border: 1px solid #333; height: 34px; align-items: center; }
+    .v-opt { padding: 0 10px; font-size: 16px; cursor: pointer; transition: 0.2s; height: 100%; display: flex; align-items: center; border-radius: 9px; filter: grayscale(1) opacity(0.3); }
+    .v-opt.active-val { background: #333; filter: grayscale(0) opacity(1); border: 1px solid rgba(34, 197, 94, 0.4); box-shadow: 0 0 10px rgba(34, 197, 94, 0.1); }
+    .v-opt.active-chg { background: #333; filter: grayscale(0) opacity(1); border: 1px solid rgba(59, 130, 246, 0.4); box-shadow: 0 0 10px rgba(59, 130, 246, 0.1); }
+    .settings-trigger { background: #1a1a1a; color: #fff; border: 1px solid #333; width: 40px; height: 40px; border-radius: 12px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .container { padding: 8px 15px; max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; height: calc(100vh - 60px); box-sizing: border-box; }
+    #chartTooltip { position: fixed; display: none; background: rgba(10, 10, 10, 0.98); border: 1.5px solid var(--primary); color: #fff; padding: 10px 14px; border-radius: 12px; font-size: 12px; pointer-events: none; z-index: 20001; box-shadow: 0 15px 35px rgba(0,0,0,1); font-family: monospace; white-space: nowrap; transform: translateX(-50%); }
+    #inputModal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 20000; display: none; align-items: flex-end; justify-content: center; }
+    #inputModal.active { display: flex; }
+    .modalBox { background: #0a0a0a; width: 100%; border-radius: 28px 28px 0 0; padding: 0 20px 40px; border-top: 1px solid #222; position: relative; max-height: 92vh; overflow-y: auto; box-sizing: border-box; }
+    .drawer-header { position: sticky; top: 0; background: #0a0a0a; z-index: 10; padding: 15px 0 10px; text-align: center; touch-action: none; }
+    .handle { width: 40px; height: 4px; background: #333; border-radius: 10px; margin: 0 auto 10px; }
+    .close-x { position: absolute; top: 12px; right: 0; color: #555; font-size: 30px; cursor: pointer; }
+    .tab-nav { display: flex; background: #111; border-radius: 14px; padding: 4px; margin-bottom: 20px; border: 1px solid #222; }
+    .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #666; font-weight: 800; font-size: 13px; cursor: pointer; border-radius: 10px; transition: 0.2s; }
+    .tab-btn.active { background: #222; color: var(--primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .month-row-compact { display: grid; grid-template-columns: 110px 1fr 1fr 1fr 40px; gap: 10px; align-items: center; margin-bottom: 12px; background: #111; padding: 12px; border-radius: 16px; border: 1px solid #1a1a1a; }
+    input { background: #000; color: #fff; border: 1px solid #222; padding: 12px 5px; font-size: 14px; text-align: center; border-radius: 12px; width: 100%; box-sizing: border-box; outline: none; }
+    .date-col select { font-size: 13px; padding: 8px; background: #000; border: 1px solid #222; color: #fff; border-radius: 10px; outline: none; width: 100%; height: 38px; margin-bottom: 4px; }
+    .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; background: #111; padding: 3px; border-radius: 10px; margin-bottom: 8px; border: 1px solid #222; }
+    .mode-btn { padding: 8px; border-radius: 8px; border: none; background: transparent; color: #555; font-weight: 800; font-size: 10px; cursor: pointer; }
+    .mode-btn.active { background: #222; color: var(--primary); }
+    .stats-strip { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin-bottom: 8px; }
+    .stat-mini { background: var(--card-bg); padding: 8px 2px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
+    .stat-mini-val { font-size: 12px; font-weight: 900; display: block; }
+    .chart-box { background: #000; border: 1px solid var(--border); border-radius: 20px; padding: 10px; margin-bottom: 8px; flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+    canvas { flex: 1; min-height: 0; }
+    .scenario-card { padding: 10px; border-radius: 14px; border: 1px solid var(--border); text-align: center; background: #0d0d0d; margin-bottom: 5px; cursor: pointer; }
+    .scenario-card.active { border-color: #fff; }
+    .btn-reset { background: rgba(239, 68, 68, 0.05); color: var(--danger); padding: 16px; border: 1px solid #441111; border-radius: 16px; width: 100%; font-size: 11px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-top: 25px; }
+    input[type=range] { -webkit-appearance: none; background: #222; height: 4px; border-radius: 10px; width: 100%; margin: 8px 0; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; border-radius: 50%; background: var(--primary); border: 3px solid #000; }
+    .risk-sync-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
+    .risk-field { position: relative; }
+    .risk-field label { font-size: 10px; color: #555; font-weight: 800; display: block; margin-bottom: 8px; }
+    .risk-field span { position: absolute; right: 12px; bottom: 12px; color: #444; font-weight: 900; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand-container">
+        <div class="brand-title">Monte Carlo Simulator</div>
+        <div class="brand-sub">by ELZ FX</div>
+    </div>
+    <div class="header-actions">
+        <div class="view-toggle-pill">
+            <div class="v-opt active-val" id="optTotal" onclick="setViewMode('val')">🏦</div>
+            <div class="v-opt" id="optChange" onclick="setViewMode('chg')">🎯</div>
+        </div>
+        <button class="settings-trigger" id="openSettings">⚙️</button>
+    </div>
+  </header>
+  <div id="chartTooltip"></div>
+  <div class="container">
+    <div class="mode-toggle"><button class="mode-btn active" id="btnRealistic" onclick="setMode('realistic')">REALISTIC</button><button class="mode-btn" id="btnEdge" onclick="setMode('edge')">EDGE</button></div>
+    <div class="stats-strip">
+        <div class="stat-mini"><span class="stat-mini-val" id="probProfit" style="color: var(--primary);">0%</span><label style="font-size: 7px;">WIN PROB</label></div>
+        <div class="stat-mini"><span class="stat-mini-val" id="ruinRisk" style="color: var(--danger);">0%</span><label style="font-size: 7px;">RUIN RISK</label></div>
+        <div class="stat-mini"><span class="stat-mini-val" id="maxStreak" style="color: #fbbf24;">0</span><label style="font-size: 7px;">MAX LOSS</label></div>
+        <div class="stat-mini"><span class="stat-mini-val" id="avgRecovery" style="color: var(--accent);">0</span><label style="font-size: 7px;">REC. TRDS</label></div>
+    </div>
+    <div id="scen-likely" class="scenario-card active" onclick="switchScenario('likely')"><div class="scen-label" style="font-size:8px; color:#666; margin-bottom:2px;">MOST POSSIBLE</div><div id="likelyVal" style="font-size: 18px; font-weight: 900;">$0</div><div id="likelyRet" style="font-size: 10px; font-weight: 800; color:var(--primary)">+0%</div></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+        <div id="scen-worst" class="scenario-card" onclick="switchScenario('worst')"><div class="scen-label" style="font-size:8px; color:#666; margin-bottom:2px;">WORST CASE</div><div id="worstVal" style="font-size: 14px; font-weight: 900;">$0</div><div id="worstRet" style="font-size: 9px; font-weight: 800; color:var(--danger)">-0%</div></div>
+        <div id="scen-best" class="scenario-card" onclick="switchScenario('best')"><div class="scen-label" style="font-size:8px; color:#666; margin-bottom:2px;">BEST CASE</div><div id="bestVal" style="font-size: 14px; font-weight: 900;">$0</div><div id="bestRet" style="font-size: 10px; font-weight: 800; color:var(--accent)">+0%</div></div>
+    </div>
+    <div class="chart-box" id="chartWrapper">
+        <canvas id="mainChart"></canvas>
+        <canvas id="ddChart" style="border-top: 1px solid #1a1a1a; padding-top: 5px;"></canvas>
+    </div>
+    <div class="card" style="border: 1px solid #222; padding: 10px; background: #0a0a0a; border-radius: 14px;"><label id="sliderLabel" style="font-size: 10px; color: #666;">Projection: <span style="float:right; color:var(--primary); font-weight:900;" id="realDurDisplay">12 Months</span></label><input type="range" id="realDurSlider" min="1" max="60" value="12" oninput="debounceSim()"></div>
+  </div>
+
+  <div id="inputModal">
+    <div class="modalBox" id="modalBox">
+        <div class="drawer-header" id="swipeArea"><div class="handle"></div><div class="close-x" id="forceCloseSettings">✕</div></div>
+        <div class="tab-nav">
+            <button class="tab-btn active" id="tabDataBtn" onclick="showTab('data')">DATA</button>
+            <button class="tab-btn" id="tabAccountBtn" onclick="showTab('account')">ACCOUNT</button>
+        </div>
+        <div id="tab-data" class="tab-content active">
+            <div id="monthsContainer"></div>
+            <button style="background:#111; color:var(--primary); padding:18px; border:1px dashed var(--primary); border-radius:16px; width:100%; font-size:11px; font-weight:900; text-transform:uppercase; cursor:pointer;" id="addMonthBtn">+ Add Performance Month</button>
+        </div>
+        <div id="tab-account" class="tab-content">
+            <div style="margin-bottom:15px;"><label style="font-size:10px; color:#555; font-weight:800; display:block; margin-bottom:8px;">TOTAL CAPITAL ($)</label><input type="number" id="startCap" value="1000" oninput="syncFromPerc()"></div>
+            <div class="risk-sync-row">
+                <div class="risk-field"><label>RISK PER TRADE (%)</label><input type="number" id="riskPerc" value="1" step="0.1" oninput="syncFromPerc()"><span>%</span></div>
+                <div class="risk-field"><label>RISK PER TRADE ($)</label><input type="number" id="riskDol" value="10" step="1" oninput="syncFromDol()"><span>$</span></div>
+            </div>
+            <button class="btn-reset" onclick="triggerReset()">🗑️ Wipe All Data</button>
+        </div>
+        <div style="height: 100px;"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // PWA SERVICE WORKER REGISTRATION
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    const monthsName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentYear = new Date().getFullYear();
+    let fullResults = null, simTimeout, activeScen = 'likely', simMode = 'realistic', displayMode = 'val'; 
+    const modal = document.getElementById('inputModal'), modalBox = document.getElementById('modalBox'), tooltip = document.getElementById('chartTooltip'), slider = document.getElementById('realDurSlider');
+
+    function setViewMode(m) { displayMode = m; document.getElementById('optTotal').className = 'v-opt' + (m === 'val' ? ' active-val' : ''); document.getElementById('optChange').className = 'v-opt' + (m === 'chg' ? ' active-chg' : ''); updateUI(); }
+    function syncFromPerc() { const cap = parseFloat(document.getElementById('startCap').value) || 0; const perc = parseFloat(document.getElementById('riskPerc').value) || 0; document.getElementById('riskDol').value = ((perc / 100) * cap).toFixed(2); debounceSim(); }
+    function syncFromDol() { const cap = parseFloat(document.getElementById('startCap').value) || 0; const dol = parseFloat(document.getElementById('riskDol').value) || 0; if(cap > 0) document.getElementById('riskPerc').value = ((dol / cap) * 100).toFixed(2); debounceSim(); }
+    function showTab(t) { document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById('tab-' + t).classList.add('active'); document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn').classList.add('active'); }
+    document.getElementById('openSettings').onclick = () => { modal.classList.add('active'); showTab('data'); };
+    function handleClose() { saveAndSim(); modal.classList.remove('active'); }
+    document.getElementById('forceCloseSettings').onclick = handleClose;
+
+    let touchStartY = 0;
+    modal.addEventListener('touchstart', e => { touchStartY = e.touches[0].pageY; }, {passive: true});
+    modal.addEventListener('touchmove', e => { const delta = e.touches[0].pageY - touchStartY; if(delta > 80 && modalBox.scrollTop <= 0) handleClose(); }, {passive: true});
+
+    function setMode(m) { 
+        simMode = m; document.getElementById('btnRealistic').classList.toggle('active', m === 'realistic'); document.getElementById('btnEdge').classList.toggle('active', m === 'edge');
+        const savedG = JSON.parse(localStorage.getItem("mc_v80_global")) || {};
+        if(m === 'edge') { slider.min = 10; slider.max = 1000; slider.value = savedG.dur_edge || 100; document.getElementById('sliderLabel').firstChild.textContent = "Trades: "; }
+        else { slider.min = 1; slider.max = 60; slider.value = savedG.dur_real || 12; document.getElementById('sliderLabel').firstChild.textContent = "Projection: "; }
+        debounceSim(); 
+    }
+    function switchScenario(s) { activeScen = s; document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active')); document.getElementById('scen-'+s).classList.add('active'); updateUI(); }
+    function debounceSim() { const val = slider.value; const label = simMode === 'realistic' ? (val == 1 ? " Month" : " Months") : " Trades"; document.getElementById('realDurDisplay').innerText = val + label; clearTimeout(simTimeout); simTimeout = setTimeout(saveAndSim, 50); }
+
+    function saveAndSim() {
+        const rows = document.querySelectorAll('.month-row-compact'), raw = Array.from(rows).map(r => ({ month: r.querySelector('.m-sel').value, year: r.querySelector('.y-sel').value, total: r.querySelector('.total').value, wins: r.querySelector('.wins').value, rr: r.querySelector('.rr').value }));
+        const valid = raw.filter(d => d.total !== "" && d.wins !== "");
+        if(valid.length) runSimulation(valid);
+        localStorage.setItem("mc_v80_months", JSON.stringify(raw));
+        const savedG = JSON.parse(localStorage.getItem("mc_v80_global")) || {};
+        if(simMode === 'realistic') savedG.dur_real = slider.value; else savedG.dur_edge = slider.value;
+        savedG.cap = document.getElementById('startCap').value; savedG.riskP = document.getElementById('riskPerc').value;
+        localStorage.setItem("mc_v80_global", JSON.stringify(savedG));
+    }
+
+    function runSimulation(data) {
+        const start = parseFloat(document.getElementById('startCap').value) || 1000, risk = (parseFloat(document.getElementById('riskPerc').value) || 0) / 100;
+        const pools = data.map(m => ({ wr: m.wins/m.total, rr: parseFloat(m.rr) }));
+        let tCount = simMode === 'edge' ? parseInt(slider.value) : Math.round((data.reduce((a,b)=>a+parseInt(b.total),0)/data.length) * parseInt(slider.value));
+        const avgEdge = { wr: pools.reduce((a,b)=>a+b.wr,0)/pools.length, rr: pools.reduce((a,b)=>a+b.rr,0)/pools.length };
+        let finals = [], ruins = 0, prof = 0;
+        for(let s=0; s<1000; s++) {
+            let bal=start, maxB=start, curve=[start], lastP=0, curS=0, maxS=0, recs=[], ruined=false;
+            for(let t=0; t<tCount; t++) {
+                const p = simMode === 'realistic' ? pools[Math.floor(Math.random() * pools.length)] : avgEdge;
+                if (Math.random() < p.wr) { bal += (bal * risk * p.rr); curS = 0; } else { bal -= (bal * risk); curS++; if(curS > maxS) maxS = curS; }
+                if(bal < start * 0.1) ruined = true;
+                curve.push(bal); if(bal >= maxB) { if(t > lastP) recs.push(t - lastP); maxB = bal; lastP = t; }
+            }
+            if(ruined) ruins++; if(bal > start) prof++;
+            finals.push({val: bal, curve, avgRec: recs.length ? Math.round(recs.reduce((a,b)=>a+b)/recs.length) : 0, maxS});
+        }
+        fullResults = { sorted: finals.sort((a,b)=>a.val - b.val), ruin: (ruins/10).toFixed(1) + "%", winP: (prof/10).toFixed(1) + "%" }; updateUI();
+    }
+
+    function updateUI() {
+        if(!fullResults) return; const start = parseFloat(document.getElementById('startCap').value);
+        const map = { worst: fullResults.sorted[0], likely: fullResults.sorted[500], best: fullResults.sorted[999] };
+        const format = (v) => {
+            const finalVal = displayMode === 'val' ? v : (v - start);
+            const prefix = (displayMode === 'chg' && finalVal >= 0) ? "+$" : (finalVal < 0 ? "-$" : "$");
+            return prefix + Math.abs(Math.floor(finalVal)).toLocaleString();
+        };
+        document.getElementById('likelyVal').innerText = format(map.likely.val);
+        document.getElementById('worstVal').innerText = format(map.worst.val);
+        document.getElementById('bestVal').innerText = format(map.best.val);
+        const updRet = (id, v) => { const p = ((v - start) / start * 100).toFixed(1); document.getElementById(id).innerText = (p >= 0 ? "+" : "") + p + "%"; };
+        updRet('likelyRet', map.likely.val); updRet('worstRet', map.worst.val); updRet('bestRet', map.best.val);
+        document.getElementById('probProfit').innerText = fullResults.winP; document.getElementById('ruinRisk').innerText = fullResults.ruin;
+        document.getElementById('maxStreak').innerText = map[activeScen].maxS; document.getElementById('avgRecovery').innerText = map[activeScen].avgRec;
+        renderCharts(map[activeScen]);
+    }
+
+    let c1 = null, c2 = null;
+    function renderCharts(target) {
+        const start = parseFloat(document.getElementById('startCap').value);
+        let pk = 0; const dd = target.curve.map(v => { if(v > pk) pk = v; return -((pk - v) / pk * 100); });
+        const displayCurve = displayMode === 'val' ? target.curve : target.curve.map(v => v - start);
+        const opts = { responsive:true, maintainAspectRatio:false, animation:false, plugins:{ legend:{display:false}, tooltip: { enabled:false } }, 
+            scales:{y:{grid:{color:'#1a1a1a'},ticks:{color:'#555',font:{size:8}}},x:{display:false}}, interaction:{mode:'index',intersect:false}};
+        const wrp = document.getElementById('chartWrapper');
+        const handleInteraction = (e) => {
+            const touch = e.touches ? e.touches[0] : e;
+            const points = c1.getElementsAtEventForMode(e, 'index', { intersect: false }, true);
+            if (points.length) {
+                const i = points[0].index;
+                tooltip.style.display = 'block';
+                const halfWidth = tooltip.offsetWidth / 2;
+                const screenWidth = window.innerWidth;
+                let targetLeft = touch.clientX;
+                if (targetLeft - halfWidth < 10) targetLeft = halfWidth + 10;
+                else if (targetLeft + halfWidth > screenWidth - 10) targetLeft = screenWidth - halfWidth - 10;
+                tooltip.style.left = targetLeft + 'px';
+                tooltip.style.top = (touch.clientY - 90) + 'px'; 
+                const val = Math.floor(displayCurve[i]);
+                tooltip.innerHTML = `T: ${i} | <b>${(val >= 0 ? '$' : '-$') + Math.abs(val).toLocaleString()}</b><br>DD: ${dd[i].toFixed(1)}%`;
+            }
+        };
+        wrp.addEventListener('touchstart', handleInteraction);
+        wrp.addEventListener('touchmove', handleInteraction);
+        wrp.addEventListener('mousemove', handleInteraction);
+        ['touchend', 'mouseleave', 'mouseup'].forEach(ev => wrp.addEventListener(ev, () => tooltip.style.display = 'none'));
+        if(c1) c1.destroy(); if(c2) c2.destroy();
+        c1 = new Chart(document.getElementById('mainChart'), { type: 'line', data: { labels: displayCurve.map((_,i)=>i), datasets: [{ data: displayCurve, borderColor: '#22c55e', borderWidth: 2, pointRadius: 0, fill: false }] }, options: opts });
+        c2 = new Chart(document.getElementById('ddChart'), { type: 'line', data: { labels: dd.map((_,i)=>i), datasets: [{ data: dd, backgroundColor: 'rgba(239, 68, 68, 0.3)', borderColor: '#ef4444', borderWidth: 1, fill: true, pointRadius: 0 }] }, options: opts });
+    }
+
+    function addMonthRow(m, y, t, w, rr, isFirst) {
+        const div = document.createElement('div'); div.className = 'month-row-compact';
+        const total = isFirst ? 20 : (t || '');
+        const wins = isFirst ? 10 : (w || '');
+        const riskReward = isFirst ? 2 : (rr || '');
+        div.innerHTML = `<div class="date-col" style="display:flex;flex-direction:column;gap:2px;"><select class="m-sel" style="font-size:12px;background:#000;color:#fff;border:1px solid #333;border-radius:6px;height:34px;">${monthsName.map(mn=>`<option ${mn===m?'selected':''}>${mn}</option>`).join('')}</select><select class="y-sel" style="font-size:12px;background:#000;color:#fff;border:1px solid #333;border-radius:6px;height:34px;">${Array.from({length:10},(_,i)=>currentYear-5+i).map(yr=>`<option ${yr==y?'selected':''}>${yr}</option>`).join('')}</select></div><input type="number" class="total" value="${total}" placeholder="T"><input type="number" class="wins" value="${wins}" placeholder="W"><input type="number" class="rr" value="${riskReward}" placeholder="RR"><div style="color:#444; cursor:pointer; font-size:22px; text-align:center" onclick="this.parentElement.remove(); saveAndSim();">✕</div>`;
+        div.querySelectorAll('input, select').forEach(el => el.oninput = saveAndSim); 
+        document.getElementById('monthsContainer').appendChild(div);
+    }
+    document.getElementById('addMonthBtn').onclick = () => {
+        const rows = document.querySelectorAll('.month-row-compact'); let last = rows[rows.length-1], nM = monthsName[0], nY = currentYear;
+        if(last) { let lIdx = monthsName.indexOf(last.querySelector('.m-sel').value); nM = lIdx === 11 ? monthsName[0] : monthsName[lIdx+1]; nY = lIdx === 11 ? parseInt(last.querySelector('.y-sel').value)+1 : last.querySelector('.y-sel').value; }
+        addMonthRow(nM, nY, '', '', '', false); saveAndSim();
+    };
+    const initM = JSON.parse(localStorage.getItem("mc_v80_months")) || [];
+    if(initM.length) initM.forEach(m => addMonthRow(m.month, m.year, m.total, m.wins, m.rr, false)); else addMonthRow(monthsName[new Date().getMonth()], currentYear, 20, 10, 2, true);
+    const savedG = JSON.parse(localStorage.getItem("mc_v80_global")) || {};
+    if(savedG.cap) document.getElementById('startCap').value = savedG.cap;
+    if(savedG.riskP) { document.getElementById('riskPerc').value = savedG.riskP; syncFromPerc(); } else { syncFromPerc(); }
+    setMode('realistic');
+  </script>
+</body>
+</html>
